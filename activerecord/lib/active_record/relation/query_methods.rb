@@ -841,6 +841,9 @@ module ActiveRecord
 
     def where!(opts, *rest) # :nodoc:
       self.where_clause += build_where_clause(opts, rest)
+      # self.merge_equalities
+      self.where_clause = self.where_clause.merge_equalities
+
       self
     end
 
@@ -1455,10 +1458,44 @@ module ActiveRecord
         raise ImmutableRelation if defined?(@arel) && @arel
       end
 
+      # def extract_node_value(node)
+      #   if node.respond_to?(:value_before_type_cast)
+      #     node.value_before_type_cast
+      #   elsif Array === node
+      #     node.map { |v| extract_node_value(v) }
+      #   end
+      # end
+
+      # def merge_equalities
+      #   equalities_hash = self.where_clause.extract_equalities_hash
+
+      #   mergeable_equalities = equalities_hash.select { |_, nodes| nodes.size > 1 }
+
+      #   return self unless mergeable_equalities.any?
+
+      #   mergeable_equalities.each do | attribute, nodes |
+      #     new_values = nodes.map do | node |
+      #       value = extract_node_value(node.right)
+      #       value = [value] unless value.is_a?(Array)
+      #       value
+      #     end.reduce(:&)
+
+      #     self.where_clause -= Relation::WhereClause.new(nodes)
+
+      #     self.where_clause += build_where_clause({ attribute => new_values })
+      #   end
+
+      #   debugger
+
+      #   self
+      # end
+
       def build_arel(aliases = nil)
         arel = Arel::SelectManager.new(table)
 
         build_joins(arel.join_sources, aliases)
+
+        # debugger
 
         arel.where(where_clause.ast) unless where_clause.empty?
         arel.having(having_clause.ast) unless having_clause.empty?

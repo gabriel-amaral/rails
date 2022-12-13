@@ -72,6 +72,54 @@ module ActiveRecord
         predicates.one? ? predicates.first : Arel::Nodes::And.new(predicates)
       end
 
+      def merge_equalities
+        attr_clauses = equalities(predicates, false).each_with_object({}) do |node, hash|
+          attribute = extract_attribute(node)
+          hash[attribute] = [] unless hash.key?(attribute)
+          hash[attribute] << node
+          hash
+        end
+
+        mergeable_equalities = attr_clauses.select { |_, nodes| nodes.size > 1 }
+
+        return self unless mergeable_equalities.any?
+
+        new_predicates = self.predicates.dup
+
+        mergeable_equalities.each do | attribute, nodes |
+          new_values = nodes.map do | node |
+            value = extract_node_value(node.right)
+            value = [value] unless value.is_a?(Array)
+            value
+          end.reduce(:&)
+
+          # debugger
+
+          new_predicates -= nodes
+
+          new_predicate = if new_values.size > 0
+              Arel::Nodes::HomogeneousIn.new(new_values, attribute, :in)
+            else
+              "1=0"
+            end
+
+          new_predicates << new_predicate unless new_predicates.any?(new_predicate)
+        end
+
+        # debugger
+
+        WhereClause.new(new_predicates)
+      end
+
+      def extract_equalities_hash
+        equalities(predicates, false).each_with_object({}) do |node, hash|
+          attribute = extract_attribute(node)
+          hash[attribute] = [] unless hash.key?(attribute)
+          hash[attribute] << node
+          hash
+        end
+      end
+
       def ==(other)
         other.is_a?(WhereClause) &&
           predicates == other.predicates
