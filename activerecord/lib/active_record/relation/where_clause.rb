@@ -37,6 +37,10 @@ module ActiveRecord
         WhereClause.new(except_predicates(columns))
       end
 
+      def reject(other)
+        WhereClause.new(predicates - other.predicates)
+      end
+
       def or(other)
         left = self - other
         common = self - left

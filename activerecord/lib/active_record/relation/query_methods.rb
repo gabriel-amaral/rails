@@ -840,7 +840,7 @@ module ActiveRecord
     end
 
     def where!(opts, *rest) # :nodoc:
-      self.where_clause += build_where_clause(opts, rest)
+      self.where_clause += build_where_clause(opts, rest).reject(self.where_clause)
       self
     end
 
