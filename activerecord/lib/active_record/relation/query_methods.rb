@@ -840,7 +840,10 @@ module ActiveRecord
     end
 
     def where!(opts, *rest) # :nodoc:
-      self.where_clause += build_where_clause(opts, rest)
+      new_where_clause = build_where_clause(opts, rest)
+      new_where_clause = merge_homogenous_in_predicates(new_where_clause)
+
+      self.where_clause += new_where_clause
       self
     end
 
@@ -1893,6 +1896,53 @@ module ActiveRecord
             v2 = v2.uniq
           end
           v1 == v2
+        end
+      end
+
+      def merge_homogenous_in_predicates(new_where_clause)
+        current_homogeneous_in_predicates = collect_homogenous_in_predicates(self.where_clause)
+        return new_where_clause if current_homogeneous_in_predicates.empty?
+
+        homogeneous_in_predicates = collect_homogenous_in_predicates(new_where_clause)
+        return new_where_clause if homogeneous_in_predicates.empty?
+
+        mergeable_predicates = mergeable_attributes(current_homogeneous_in_predicates + homogeneous_in_predicates)
+        return new_where_clause if mergeable_predicates.empty?
+
+        homogeneous_in_predicates = mergeable_predicates.map do |attribute, predicates|
+          result = predicates.map(&:casted_values).reduce(:&)
+
+          # TODO: It would avoid merging it to any clauses further
+          # next Arel::Nodes::Equality.new(node.attribute, result.first) if result.size == 1
+
+          Arel::Nodes::HomogeneousIn.new(result, attribute, :in)
+        end
+
+        #TODO is it a better way to remove the homogeneous in predicates?
+        self.where_clause -= ActiveRecord::Relation::WhereClause.new(current_homogeneous_in_predicates)
+
+        new_where_clause.merge(ActiveRecord::Relation::WhereClause.new(homogeneous_in_predicates))
+      end
+
+      def mergeable_attributes(predicates)
+        result = {}
+
+        predicates.group_by(&:attribute).each do |attribute, predicates|
+          if predicates.size > 1
+            result[attribute] = predicates
+          end
+        end
+
+        result
+      end
+
+      def collect_homogenous_in_predicates(where_clause)
+        ast = where_clause.ast
+        return [ast] if ast.is_a?(Arel::Nodes::HomogeneousIn)
+        return [] unless ast.is_a?(Arel::Nodes::And)
+
+        where_clause.ast.children.each.select do |node|
+          node.is_a?(Arel::Nodes::HomogeneousIn)
         end
       end
   end
