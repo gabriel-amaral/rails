@@ -1460,7 +1460,7 @@ module ActiveRecord
 
         build_joins(arel.join_sources, aliases)
 
-        arel.where(where_clause.ast) unless where_clause.empty?
+        arel.where(where_clause.merge_homogenous_in_predicates.ast) unless where_clause.empty?
         arel.having(having_clause.ast) unless having_clause.empty?
         arel.take(build_cast_value("LIMIT", connection.sanitize_limit(limit_value))) if limit_value
         arel.skip(build_cast_value("OFFSET", offset_value.to_i)) if offset_value
