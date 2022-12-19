@@ -113,6 +113,40 @@ module ActiveRecord
         attrs
       end
 
+      def merge_homogenous_in_predicates
+        mergeable_predicates = extract_predicates_hash.each_with_object({}) do |(attribute, predicates), hash|
+          homogeneous_in_predicates = predicates.select { |predicate| predicate.is_a?(Arel::Nodes::HomogeneousIn) }
+          next unless homogeneous_in_predicates.size > 1
+
+          hash[attribute] = homogeneous_in_predicates
+        end
+
+        return WhereClause.new(predicates) if mergeable_predicates.empty?
+
+        predicates_to_exclude = []
+
+        homogeneous_in_predicates = mergeable_predicates.map do |attribute, predicates|
+          result = predicates.map(&:casted_values).reduce(:&)
+
+          predicates_to_exclude += predicates
+
+          Arel::Nodes::HomogeneousIn.new(result, attribute, :in)
+        end
+
+        WhereClause.new(predicates - predicates_to_exclude + homogeneous_in_predicates)
+      end
+
+      def extract_predicates_hash
+        result = {}
+
+        each_attributes do |attribute, predicate|
+          result[attribute] = [] unless result.key?(attribute)
+          result[attribute] << predicate
+        end
+
+        result
+      end
+
       protected
         attr_reader :predicates
 

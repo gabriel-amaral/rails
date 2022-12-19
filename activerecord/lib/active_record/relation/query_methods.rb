@@ -841,6 +841,7 @@ module ActiveRecord
 
     def where!(opts, *rest) # :nodoc:
       self.where_clause += build_where_clause(opts, rest)
+      self.where_clause = self.where_clause.merge_homogenous_in_predicates
       self
     end
 
