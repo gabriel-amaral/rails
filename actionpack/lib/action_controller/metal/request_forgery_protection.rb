@@ -639,7 +639,7 @@ module ActionController # :nodoc:
         if uri.relative? && (action_path.blank? || !action_path.start_with?("/"))
           uri = URI.parse(request.path)
           # add the action path to the request.path
-          uri.path += "/#{action_path}"
+          uri.path += "/#{URI.parse(action_path).path}"
           # relative path with "./path"
           uri.path.gsub!("/./", "/")
         end
