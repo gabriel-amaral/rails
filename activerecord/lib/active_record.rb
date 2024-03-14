@@ -515,6 +515,12 @@ module ActiveRecord
     }
   )
 
+  singleton_class.attr_accessor :enable_on_server_exit_callbacks
+  self.enable_on_server_exit_callbacks = false
+
+  singleton_class.attr_accessor :on_server_exit_callbacks
+  self.on_server_exit_callbacks = []
+
   def self.eager_load!
     super
     ActiveRecord::Locking.eager_load!
@@ -528,6 +534,18 @@ module ActiveRecord
   # Explicitly closes all database connections in all pools.
   def self.disconnect_all!
     ConnectionAdapters::PoolConfig.disconnect_all!
+  end
+
+  def self.on_server_exit_callbacks_enabled?
+    self.enable_on_server_exit_callbacks
+  end
+
+  def self.run_on_server_exit_callbacks
+    return unless on_server_exit_callbacks_enabled?
+
+    self.on_server_exit_callbacks.each do |callback|
+      callback.call
+    end
   end
 end
 

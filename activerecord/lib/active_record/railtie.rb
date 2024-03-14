@@ -43,6 +43,8 @@ module ActiveRecord
 
     config.eager_load_namespaces << ActiveRecord
 
+    config.active_record.on_server_exit_callbacks = []
+
     rake_tasks do
       namespace :db do
         task :load_config do
