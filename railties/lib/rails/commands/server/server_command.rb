@@ -141,7 +141,11 @@ module Rails
 
           if server.serveable?
             print_boot_information(server.server, server.served_url)
-            after_stop_callback = -> { say "Exiting" unless options[:daemon] }
+            after_stop_callback = Proc.new do
+              ActiveRecord.run_on_server_exit_callbacks if defined?(ActiveRecord)
+
+              say "Exiting" unless options[:daemon]
+            end
             server.start(after_stop_callback)
           else
             say rack_server_suggestion(options[:using])
